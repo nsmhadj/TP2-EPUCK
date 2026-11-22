@@ -1,4 +1,4 @@
-  
+
 #include <webots/robot.h>
 #include <webots/distance_sensor.h>
 #include <webots/motor.h>
@@ -10,13 +10,13 @@ const int pasTemps = 64;
 const float vitesseMax = 6.28f;
 
 // Les seuils pour la logique floue
-const float seuilTresProche = 1000.0f;
-const float seuilProche = 400.0f;
-const float seuilLoin = 150.0f;
+const float seuilTresProche = 400.0f;
+const float seuilProche = 300.0f;
+const float seuilLoin = 100.0f;
 
 // Les valeurs pour tourner
-const float tournerDroite = -0.4f;
-const float tournerGauche = 0.4f;
+const float tournerDroite = -0.6f;
+const float tournerGauche = 0.25f;
 const float allerToutDroit = 0.0f;
 
 // Les vitesses du robot
@@ -69,7 +69,7 @@ float est_bon(float valeur) {
 // Calcul de l'orientation avec les regles floues
 float controle_orientation(float murGauche, float obstacleDevant) {
 
-    // On calcule les degres d'appartenance
+    // Calcul des degres d'appartenance
     float murProche = est_proche(murGauche);
     float murLoin = est_loin(murGauche);
     float murBon = est_bon(murGauche);
@@ -109,7 +109,7 @@ float controle_vitesse(float murGauche, float obstacleDevant) {
     // On prend la valeur de danger la plus grande
     float dangerMax = fmaxf(murGauche, obstacleDevant);
 
-    // On calcule les degres d'appartenance
+    // Calcul des degres d'appartenance
     float dangerEleve = est_proche(dangerMax);
     float dangerMoyen = est_bon(dangerMax);
     float dangerFaible = est_loin(dangerMax);
@@ -149,13 +149,13 @@ void convertir_vitesses(float angle, float vitesse, float *vg, float *vd) {
         *vd = vitesse;
     }
 
-    // Sinon on tourne a droite ou on avance tout droit
+    // Sinon on tourne a droite ou tout droit
     else {
         *vg = vitesse;
         *vd = vitesse * (1.0f + angle);
     }
 
-    // On limite la vitesse des deux roues
+    // On limite les vitesses des roues
     if (*vg > vitesseMax)
         *vg = vitesseMax;
 
@@ -173,7 +173,7 @@ void convertir_vitesses(float angle, float vitesse, float *vg, float *vd) {
 // Fonction principale
 int main(int argc, char **argv) {
 
-    // On initialise le robot
+    // Initialisation du robot
     wb_robot_init();
 
     // Recuperation des capteurs
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
     WbDeviceTag capteurGauche1 = wb_robot_get_device("ps5");
     WbDeviceTag capteurGauche2 = wb_robot_get_device("ps6");
 
-    // On active les capteurs
+    // Activation des capteurs
     wb_distance_sensor_enable(capteurAvant, pasTemps);
     wb_distance_sensor_enable(capteurDroit, pasTemps);
     wb_distance_sensor_enable(capteurGauche1, pasTemps);
@@ -199,40 +199,46 @@ int main(int argc, char **argv) {
     wb_motor_set_position(moteurGauche, INFINITY);
     wb_motor_set_position(moteurDroit, INFINITY);
 
-    // Au debut les deux roues sont a l'arret
+    // Au debut les roues sont a l'arret
     wb_motor_set_velocity(moteurGauche, 0.0);
     wb_motor_set_velocity(moteurDroit, 0.0);
 
     printf("--- Demarrage du robot avec logique floue ---\n");
     printf("Objectif : suivre le mur gauche avec 3 regles.\n");
 
-    // Boucle principale du robot
+    // Boucle principale
     while (wb_robot_step(pasTemps) != -1) {
 
-        // On recupere les valeurs des capteurs
+        // Recuperation des valeurs des capteurs
         float valeurAvant = wb_distance_sensor_get_value(capteurAvant);
         float valeurGauche1 = wb_distance_sensor_get_value(capteurGauche1);
         float valeurGauche2 = wb_distance_sensor_get_value(capteurGauche2);
 
-        // On prend la plus grande valeur des capteurs gauche
+        // On prend la plus grande valeur a gauche
         float murGauche = fmaxf(valeurGauche1, valeurGauche2);
 
-        // On garde la valeur du capteur avant
+        // Valeur de l'obstacle devant
         float obstacleDevant = valeurAvant;
 
-        // Calcul de l'orientation et la vitesse
+        // Calcul de l'orientation et de la vitesse
         float orientation = controle_orientation(murGauche, obstacleDevant);
         float vitesse = controle_vitesse(murGauche, obstacleDevant);
 
-        // Calcul de la vitesse des deux roues
+        // Calcul des vitesses des deux roues
         float vitesseGauche, vitesseDroite;
-        convertir_vitesses(orientation, vitesse, &vitesseGauche, &vitesseDroite);
 
-        // On applique les vitesses aux moteurs
+        convertir_vitesses(
+            orientation,
+            vitesse,
+            &vitesseGauche,
+            &vitesseDroite
+        );
+
+        // On envoie les vitesses aux moteurs
         wb_motor_set_velocity(moteurGauche, vitesseGauche);
         wb_motor_set_velocity(moteurDroit, vitesseDroite);
 
-        // Affichage des valeurs pour voir le comportement du robot
+        // Affichage des valeurs dans la console
         printf("Mur: %4.0f | Devant: %4.0f || Angle: %+.2f | Vitesse: %.2f\n",
                murGauche, obstacleDevant, orientation, vitesse);
     }
